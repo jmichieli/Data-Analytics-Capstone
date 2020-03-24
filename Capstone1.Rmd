@@ -1,0 +1,178 @@
+---
+title: "ExplorationAndCleaning"
+author: "Julien Michieli"
+date: "23/03/2020"
+output: word_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## R Markdown
+
+This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
+
+When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
+
+```{r setup, include=FALSE}
+#packages required to run all for the code in this file
+install.packages('sqldf')
+install.packages('ggplot2')
+install.packages('dplyr')
+library(sqldf)
+library(ggplot2)
+library(dplyr)
+```
+
+This file only contains the R code used to analyze the data, the sql querries involved in my decision making process are not shown, although the steps taken will be explained.
+```{r setup, include=FALSE}
+Bank <- read.csv(file = 'Bank.csv', header = TRUE)
+```
+
+The zipcodes are the same for all of the data so this will prove to be unimportant in analysis, they can be omitted.
+
+```{r setup, include=FALSE}
+Bank <- select(Bank, -c(zipcodeOri,zipMerchant))
+```
+
+Omit all instances where the gender was unknown. Done in gender because since it contains the customer gender info and whether they are a person or enterprise. Unknowns represented a small minority of the cases. 
+
+```{r setup, include=FALSE}
+Bank <- Bank[!(Bank$gender == "'U'"),]
+```
+
+Rename factos in age to their ranges for easier understanding 
+```{r setup, include=FALSE}
+levels(Bank$age)[levels(Bank$age) == "'0'"] <- "-18"
+levels(Bank$age)[levels(Bank$age) == "'1'"] <- "19-25"
+levels(Bank$age)[levels(Bank$age) == "'2'"] <- "26-35"
+levels(Bank$age)[levels(Bank$age) == "'3'"] <- "36-45"
+levels(Bank$age)[levels(Bank$age) == "'4'"] <- "46-55"
+levels(Bank$age)[levels(Bank$age) == "'5'"] <- "56-65"
+levels(Bank$age)[levels(Bank$age) == "'6'"] <- "65+"
+levels(Bank$age)[levels(Bank$age) == "'U'"] <- "E"
+```
+
+The following is the code used to produce different plots ofr visualizing the data and gain more understanding:
+
+```{r setup, include=FALSE}
+# barplot agegroups fraudulent and 
+A <- with(Bank, table(fraud, age))
+barplot(A, beside = TRUE, legend = TRUE, xlab = 'Age Groups', ylab = 'Count')
+```
+
+```{r setup, include=FALSE}
+# barplot agegroups fraudulent and 
+B <- with(Bank, table(fraud, gender))
+barplot(B, beside = TRUE, legend = TRUE, xlab = 'Gender', ylab = 'Count')
+```
+
+```{r setup, include=FALSE}
+#amount for frauds and ordinary
+safes <- sqldf('select amount from Bank where fraud = 0')
+fraud <- sqldf('select amount from Bank where fraud = 1')
+
+sdfraud <- sd(fraud$amount)
+sdsafes <- sd(safes$amount)
+
+P <- ggplot(fraud, aes(x=amount))+geom_density(color = 'darkblue', fill = 'lightblue')
+Q <- ggplot(safes, aes(x=amount))+geom_density(color = 'black', fill = 'pink', xlim = 1000)
+```
+
+```{r setup, include=FALSE}
+#break full data set into age groups
+A <- split(Bank, Bank$age)
+A0 <- A[[1]]
+A1 <- A[[2]]
+A2 <- A[[3]]
+A3 <- A[[4]]
+A4 <- A[[5]]
+A5 <- A[[6]]
+A6 <- A[[7]]
+AU <- A[[8]]
+
+#find % fraud by age group
+fa0 <- sum(A0$fraud)/nrow(A0)
+fa1 <- sum(A1$fraud)/nrow(A1)
+fa2 <- sum(A2$fraud)/nrow(A2)
+fa3 <- sum(A3$fraud)/nrow(A3)
+fa4 <- sum(A4$fraud)/nrow(A4)
+fa5 <- sum(A5$fraud)/nrow(A5)
+fa6 <- sum(A6$fraud)/nrow(A6)
+faU <- sum(AU$fraud)/nrow(AU)
+oa0 <- 1-fa0
+oa1 <- 1-fa1
+oa2 <- 1-fa2
+oa3 <- 1-fa3
+oa4 <- 1-fa4
+oa5 <- 1-fa5
+oa6 <- 1-fa6
+oaU <- 1-faU
+```
+
+```{r setup, include=FALSE}
+#male and female
+mfsplit <- split(Bank, Bank$gender)
+Male <- mfsplit[[3]]
+female <-mfsplit[[2]]
+Ent <-mfsplit[[1]]
+fmale <- sum(Male$fraud)/nrow(Male)
+ffemale <- sum(female$fraud)/nrow(female)
+fent <- sum(Ent$fraud)/nrow(Ent)
+```
+
+```{r setup, include=FALSE}
+#customers and merchants
+CM <-(sqldf('select customer, merchant, category from Bank where fraud = 1'))
+fmerchants <- count(CM, merchant)
+fcustomers <- count(CM, customer)
+mer <- fmerchants[order(-fmerchants$n),]
+cus <- fcustomers[order(-fcustomers$n),]
+merch <- sqldf('select fmerchants.merchant, fmerchants.n, CM.category from fmerchants left join CM on fmerchants.merchant = CM.merchant')
+custo <- sqldf('select fcustomers.customer, fcustomers.n from fcustomers order by n desc')
+MM <- sqldf('select distinct * from merch order by n desc')
+CC <- sqldf('select distinct * from custo order by n desc')
+```
+
+```{r setup, include=FALSE}
+#fraud by category
+Cat <- sqldf('select category from Bank where fraud = 1')
+CatCount <- count(Cat, Cat$category)
+HighF <- sqldf('select distinct merchant, category from Bank')
+puma <- count(HighF, HighF $category)
+```
+
+Creating balanced datasets that are over and undersampled.
+
+required libraies
+
+```{r setup, include= FALSE}
+install.packages("unbalanced")
+library(unbalanced)
+```
+
+creating the balanced data sets through the functions below
+
+```{r setup, include=FALSE}
+BankClean <- select(Bank, -c(customer,merchant))
+Under <- ubUnder(BankClean, Bank$fraud)
+BankUnder <- data.frame(Under$X)
+Over  <-  ubOver(BankClean, Bank$fraud)
+BankOver <- data.frame(Over$X)
+```
+
+Writing to a new csv files to be used for ML algorithms
+
+```{r setup, include=FALSE}
+write.csv(Bank, file = "BankClean.csv")
+write.csv(BankOver, file = "BankOver.csv")
+write.csv(BankUnder, file = "BankUnder.csv")
+```
+
+
+
+
+
+
+

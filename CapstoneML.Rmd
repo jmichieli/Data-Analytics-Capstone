@@ -1,0 +1,201 @@
+---
+title: "CapstoneML"
+author: "Julien Michieli"
+date: "23/03/2020"
+output: word_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## R Markdown
+
+This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
+
+When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
+
+First the data will be read in
+
+```{r setup, include=FALSE}
+BankClean <- read.csv(file = 'BankClean.csv', header = TRUE)
+BankOver <- read.csv(file = "BankOver.csv", header = TRUE)
+BankUnder <- read.csv(file = "BankUnder.csv", header = TRUE)
+```
+
+installing the libraries for the machine learning algorithms I am using.
+
+Decision Tree: party
+Random forest: randomForest
+Naive Bayes: naivebayes
+Bayesian Network: bnlearn
+Support Vector Machine: e1071
+KNN: stats
+
+```{r setup, include=FALSE}
+install.packages("party")
+install.packages("randomForest")
+install.packages("naivebayes")
+install.packages("bnlearn")
+install.packages("e1071")
+install.packages("stats")
+library(party)
+library(randomForest)
+library(naivebayes)
+library(bnlearn)
+library(e1071)
+library(stats)
+```
+
+I will be using an 80/20 split for the ML algorithms for now but would like to try 10 fold cross validation at some point to compare the results
+
+```{r setup, include=FALSE}
+install.packages("caTools")
+library(caTools)
+set.seed(420)
+#Oversampled
+Oversize <- floor(0.8 * nrow(BankOver))
+
+Overindex <- sample(seq_len(nrow(BankOver)), size = Oversize)
+
+Overtrain <- BankOver[Overindex, ]
+Overtest <- BankOver[-Overindex, ]
+
+#Unbalanced
+Unbalancedsize <- floor(0.8 * nrow(BankClean))
+
+Unbalancedindex <- sample(seq_len(nrow(BankClean)), size = Unbalancedsize)
+
+untrain <- BankClean[Unbalancedindex, ]
+untest <- BankClean[-Unbalancedindex, ]
+#uncersampled
+
+undersize <- floor(0.8 * nrow(BankUnder))
+
+underindex <- sample(seq_len(nrow(BankUnder)), size = undersize)
+
+undertrain <- BankUnder[underindex, ]
+undertest <- BankUnder[-underindex, ]
+
+```
+
+Decision Tree
+
+```{r setup, include=FALSE}
+#oversample
+DT.over.model <- ctree(fraud~., data = Overtrain)
+DT.over.pred <- predict(DT.over.model, newdata = Overtest)
+DT.over.cm <- confusionMatrix(DT.over.pred, overtest$fraud)
+
+#unbalanced
+DT.un.model <- ctree(fraud~., data = untrain)
+DT.un.pred <- predict(DT.un.model, newdata = untest)
+DT.un.cm <- confusionMatrix(DT.un.pred, untest$fraud)
+
+#undersampled
+DT.under.model <- ctree(fraud~., data = undertrain)
+DT.under.pred <- predict(DT.over.model, newdata = undertest)
+DT.under.cm <- confusionMatrix(DT.under.pred, undertest$fraud)
+
+```
+
+Random Forest
+
+```{r setup, include=FALSE}
+#oversample
+RF.over.model <- randomForest(fraud~., data = Overtrain)
+RF.over.pred <- predict(RF.over.model, newdata = Overtest)
+RF.over.cm <- confusionMatrix(RF.over.pred, overtest$fraud)
+
+#unbalanced
+RF.un.model <- randomForest(fraud~., data = untrain)
+RF.un.pred <- predict(RF.un.model, newdata = untest)
+RF.un.cm <- confusionMatrix(RF.un.pred, untest$fraud)
+
+#undersampled
+RF.under.model <- randomForest(fraud~., data = undertrain)
+RF.under.pred <- predict(RF.under.model, newdata = undertest)
+RF.under.cm <- confusionMatrix(RF.under.pred, undertest$fraud)
+```
+
+Naive Bayes
+
+```{r setup, include=FALSE}
+#oversample
+NB.over.model <- naive_bayes(fraud~., data = Overtrain)
+NB.over.pred <- predict(NB.over.model, newdata = Overtest)
+NB.over.cm <- confusionMatrix(NB.over.pred, overtest$fraud)
+
+#unbalanced
+NB.un.model <- naive_bayes(fraud~., data = untrain)
+NB.un.pred <- predict(NB.un.model, newdata = untest)
+NB.un.cm <- confusionMatrix(NB.un.pred, untest$fraud)
+
+#undersampled
+NB.under.model <- naive_bayes(fraud~., data = undertrain)
+NB.under.pred <- predict(NB.under.model, newdata = undertest)
+NB.under.cm <- confusionMatrix(NB.under.pred, undertest$fraud)
+```
+
+Bayesian Network
+```{r setup, include=FALSE}
+#oversample
+BN.over.model <- bn.fit(fraud~., data = Overtrain)
+BN.over.pred <- predict(BN.over.model, newdata = Overtest)
+BN.over.cm <- confusionMatrix(BN.over.pred, overtest$fraud)
+
+#unbalanced
+BN.un.model <- bn.fit(fraud~., data = untrain)
+BN.un.pred <- predict(BN.un.model, newdata = untest)
+BN.un.cm <- confusionMatrix(BN.un.pred, untest$fraud)
+
+#undersampled
+BN.under.model <- bn.fit(fraud~., data = undertrain)
+BN.under.pred <- predict(BN.under.model, newdata = undertest)
+BN.under.cm <- confusionMatrix(BN.under.pred, undertest$fraud)
+```
+
+Support Vector Machine
+
+```{r setup, include=FALSE}
+#oversample
+SVM.over.model <- svm(fraud~., data = Overtrain)
+SVM.over.pred <- predict(SVM.over.model, newdata = Overtest)
+SVM.over.cm <- confusionMatrix(SVM.over.pred, overtest$fraud)
+
+#unbalanced
+SVM.un.model <- svm(fraud~., data = untrain)
+SVM.un.pred <- predict(SVM.un.model, newdata = untest)
+SVM.un.cm <- confusionMatrix(SVM.un.pred, untest$fraud)
+
+#undersampled
+SVM.under.model <- svm(fraud~., data = undertrain)
+SVM.under.pred <- predict(SVM.under.model, newdata = undertest)
+SVM.under.cm <- confusionMatrix(SVM.under.pred, undertest$fraud)
+```
+
+KNN
+
+```{r setup, include=FALSE}
+#oversample
+KNN.over.model <- knn3(fraud~., data = Overtrain)
+KNN.over.pred <- predict(KNN.over.model, newdata = Overtest)
+KNN.over.cm <- confusionMatrix(KNN.over.pred, overtest$fraud)
+
+#unbalanced
+KNN.un.model <- knn3(fraud~., data = untrain)
+KNN.un.pred <- predict(KNN.un.model, newdata = untest)
+KNN.un.cm <- confusionMatrix(KNN.un.pred, untest$fraud)
+
+#undersampled
+KNN.under.model <- knn3(fraud~., data = undertrain)
+KNN.under.pred <- predict(KNN.under.model, newdata = undertest)
+KNN.under.cm <- confusionMatrix(KNN.under.pred, undertest$fraud)
+```
+
+ML algorithm to be chosen
+
+```{r setup, include=FALSE}
+# :) ;) XD
+```
+
